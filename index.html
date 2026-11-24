@@ -1,0 +1,310 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Limpiador metadatos para Marian</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400;1,500&family=Manrope:wght@400;500;600&display=swap">
+<style>
+/* Layout: una sola columna centrada, como la tarjeta de un estuche. Nombre en serif itálica, zona para soltar como "marco", fotos limpias en galería. Diseño oscuro a propósito (terciopelo y oro rosa), igual en cualquier tema. */
+:root{
+  --bg:#110e12; --bg-2:#1a1519; --surface:rgba(255,255,255,.035); --line:rgba(231,196,176,.18); --line-strong:rgba(231,196,176,.42);
+  --fg:#f3ece7; --muted:#a99c99; --accent:#e7c4b0; --accent-deep:#c99a82; --accent-ink:#1a1216;
+  --ok:#b9dcc4; --bad:#f0a3a3;
+  --font-display:"Cormorant Garamond","Cormorant",Garamond,"Times New Roman",serif;
+  --font-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:radial-gradient(120% 70% at 50% -10%,#2a1f26 0%,var(--bg) 60%) fixed,var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:720px;margin:0 auto;padding-block:56px 72px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:36px}
+header{text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.eyebrow{font-size:.7rem;font-weight:600;letter-spacing:.32em;text-transform:uppercase;color:var(--accent)}
+header h1{margin:0;font-family:var(--font-display);font-weight:400;font-style:italic;font-size:clamp(3rem,11vw,4.6rem);line-height:1;letter-spacing:-.01em;background:linear-gradient(180deg,#fbeee6 10%,var(--accent) 60%,var(--accent-deep));-webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:.08em}
+.rule{display:flex;align-items:center;gap:12px;color:var(--accent);margin-top:10px}
+.rule::before,.rule::after{content:"";width:48px;height:1px;background:linear-gradient(90deg,transparent,var(--line-strong))}
+.rule::after{transform:scaleX(-1)}
+.rule svg{width:10px;height:10px}
+.drop{position:relative;border:1px solid var(--line);background:var(--surface);border-radius:28px;padding:48px 24px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:14px;transition:border-color .25s,background .25s,transform .25s;outline:none}
+.drop::before{content:"";position:absolute;inset:8px;border:1px dashed var(--line);border-radius:22px;pointer-events:none;transition:border-color .25s}
+.drop:hover,.drop:focus-visible,.drop.over{border-color:var(--line-strong);background:rgba(231,196,176,.06)}
+.drop:hover::before,.drop:focus-visible::before,.drop.over::before{border-color:var(--line-strong)}
+.drop.over{transform:scale(1.01)}
+.drop .ico{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,var(--accent),var(--accent-deep));color:var(--accent-ink);box-shadow:0 10px 30px -8px rgba(231,196,176,.45)}
+.drop .ico svg{width:24px;height:24px}
+.drop strong{font-family:var(--font-display);font-weight:500;font-size:1.65rem;line-height:1.1}
+.drop span{color:var(--muted);font-size:.88rem}
+.btn{font:600 .82rem var(--font-body);letter-spacing:.06em;border-radius:999px;padding:11px 22px;border:1px solid var(--line-strong);background:transparent;color:var(--fg);cursor:pointer;transition:background .2s,border-color .2s}
+.btn:hover{border-color:var(--accent);background:rgba(231,196,176,.08)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.btn.primary{background:linear-gradient(145deg,var(--accent),var(--accent-deep));color:var(--accent-ink);border-color:transparent}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.bar:has(.count:empty){display:none}
+.bar .count{color:var(--muted);font-size:.85rem;letter-spacing:.04em}
+.bar .actions{display:flex;gap:10px;flex-wrap:wrap}
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.list:empty{display:none}
+.item{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden;min-width:0}
+.thumb{display:block;width:100%;aspect-ratio:4/5;max-width:100%;object-fit:cover;background:var(--bg-2)}
+.info{min-width:0;display:flex;flex-direction:column;gap:8px;padding:14px 16px 16px}
+.name{font-weight:500;font-size:.85rem;overflow-wrap:anywhere;color:var(--fg)}
+.meta{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums;letter-spacing:.03em}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:.72rem;font-weight:600;letter-spacing:.04em;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.chip.ok{color:var(--ok);border-color:rgba(185,220,196,.35)}
+.chip.err{color:var(--bad);border-color:rgba(240,163,163,.4)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:2px}
+.row .btn{width:100%;padding:9px 14px}
+.hint{font-size:.78rem;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--accent);color:var(--accent-ink);padding:10px 20px;border-radius:999px;font-size:.85rem;font-weight:600;max-width:calc(100% - 32px);box-shadow:0 12px 30px -10px rgba(0,0,0,.6)}
+footer{text-align:center;color:var(--muted);font-size:.75rem;letter-spacing:.08em}
+@media (max-width:480px){.list{grid-template-columns:1fr 1fr;gap:12px}.info{padding:12px}.drop{padding:40px 18px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Limpiador metadatos</div>
+    <h1>para Marian!!</h1>
+    <div class="rule" aria-hidden="true"><svg viewBox="0 0 10 10"><path d="M5 0 6.2 3.8 10 5 6.2 6.2 5 10 3.8 6.2 0 5 3.8 3.8Z" fill="currentColor"/></svg></div>
+  </header>
+
+  <div class="drop" id="drop" tabindex="0" role="button" aria-label="Elegir fotos">
+    <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+    <strong>Tocá acá o arrastrá tus fotos</strong>
+    <span>Podés elegir varias a la vez</span>
+    <input type="file" id="file" accept="image/*" multiple hidden>
+  </div>
+
+  <div class="bar">
+    <div class="count" id="count"></div>
+    <div class="actions">
+      <button class="btn" id="clear" type="button">Vaciar</button>
+      <button class="btn primary" id="all" type="button">Descargar todas</button>
+    </div>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <footer>Tus fotos nunca salen de tu dispositivo</footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const drop = $("drop"), input = $("file"), list = $("list");
+  const items = []; // {id, file, name, before:[], out:{blob,name,after:[]}, el}
+  let downloads = null, seq = 0, showingExample = false;
+
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("downloads").then((d) => { downloads = d; render(); }).catch(() => {});
+  }
+
+  // ---------- detección de metadatos ----------
+  const AI_HINTS = [
+    ["trainedAlgorithmicMedia", "Marcada como IA"],
+    ["Higgsfield", "Higgsfield"], ["higgsfield", "Higgsfield"],
+    ["OpenAI", "OpenAI"], ["Midjourney", "Midjourney"], ["Firefly", "Adobe Firefly"],
+    ["Google Gemini", "Gemini"], ["Imagen", "Google Imagen"], ["Stable Diffusion", "Stable Diffusion"],
+    ["Runway ML", "Runway"], ["DALL-E", "DALL·E"],
+  ];
+  function detect(buf) {
+    const u8 = new Uint8Array(buf);
+    const found = new Set();
+    // PNG chunks
+    if (u8[0] === 0x89 && u8[1] === 0x50) {
+      let p = 8; const dv = new DataView(buf);
+      while (p + 8 <= u8.length) {
+        const len = dv.getUint32(p); const type = String.fromCharCode(u8[p+4],u8[p+5],u8[p+6],u8[p+7]);
+        if (type === "eXIf") found.add("EXIF");
+        if (type === "tEXt" || type === "zTXt" || type === "iTXt") found.add("Texto PNG");
+        if (type === "caBX") found.add("C2PA");
+        if (type === "IEND") break;
+        p += 12 + len;
+      }
+    }
+    // JPEG segments
+    if (u8[0] === 0xFF && u8[1] === 0xD8) {
+      let p = 2;
+      while (p + 4 <= u8.length && u8[p] === 0xFF) {
+        const m = u8[p+1];
+        if (m === 0xDA || m === 0xD9) break;
+        const len = (u8[p+2] << 8) | u8[p+3];
+        if (m === 0xE1) found.add(asciiAt(u8, p+4, 4) === "Exif" ? "EXIF" : "XMP");
+        if (m === 0xED) found.add("IPTC");
+        if (m === 0xEB) found.add("C2PA");
+                if (m === 0xFE) found.add("Comentario");
+        p += 2 + len;
+      }
+    }
+    // búsqueda de texto general (sirve para WebP y para confirmar)
+    const s = new TextDecoder("latin1").decode(u8.length > 40e6 ? u8.subarray(0, 40e6) : u8);
+    if (s.includes("<x:xmpmeta") || s.includes("http://ns.adobe.com/xap/1.0/")) found.add("XMP");
+    if (s.includes("c2pa") || s.includes("jumb") && s.includes("jumd")) found.add("C2PA");
+    if (s.includes("Exif\0\0")) found.add("EXIF");
+    if (s.includes("Photoshop 3.0")) found.add("IPTC");
+    const ai = new Set();
+    for (const [needle, label] of AI_HINTS) if (s.includes(needle)) ai.add(label);
+    if (found.has("C2PA")) ai.add("Credencial C2PA");
+    return { tags: [...found], ai: [...ai] };
+  }
+  function asciiAt(u8, start, n) { let o = ""; for (let i = 0; i < n && start+i < u8.length; i++) o += String.fromCharCode(u8[start+i]); return o; }
+
+  // ---------- limpieza ----------
+  function loadImage(file) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => res({ img, url });
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("decode")); };
+      img.src = url;
+    });
+  }
+  async function clean(it) {
+    const fmt = /png|webp|gif/i.test(it.file.type) || /\.(png|webp)$/i.test(it.name) ? "image/png" : "image/jpeg", q = 0.97;
+    const { img, url } = await loadImage(it.file);
+    it.thumb = url;
+    let w = img.naturalWidth, h = img.naturalHeight;
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const ctx = c.getContext("2d");
+    if (fmt === "image/jpeg") { ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h); }
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((r) => c.toBlob(r, fmt, q));
+    if (!blob) throw new Error("encode");
+    const after = detect(await blob.arrayBuffer());
+    const base = it.name.replace(/\.[^.]+$/, "") || "imagen";
+    it.out = { blob, name: `${base}-limpia.${fmt === "image/png" ? "png" : "jpg"}`, after, w, h, url: URL.createObjectURL(blob) };
+  }
+
+  async function addFiles(files) {
+    const arr = [...files].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|avif)$/i.test(f.name));
+    if (!arr.length) { toast("Esos archivos no son imágenes"); return; }
+    if (showingExample) { items.length = 0; showingExample = false; }
+    for (const file of arr) {
+      const it = { id: ++seq, file, name: file.name, size: file.size, status: "work" };
+      items.push(it);
+    }
+    render();
+    for (const it of items.filter((x) => x.status === "work")) await processItem(it);
+  }
+  async function processItem(it) {
+    try {
+      it.before = detect(await it.file.arrayBuffer());
+      await clean(it);
+      it.status = "done";
+    } catch (e) {
+      it.status = "error";
+      it.error = /\.(heic|heif)$/i.test(it.name)
+        ? "Este navegador no abre fotos HEIC. Probá en Safari o exportala como JPG primero."
+        : "No se pudo abrir esta imagen. Probá exportarla como JPG o PNG.";
+    }
+    render();
+  }
+
+  // ---------- render ----------
+  const fmtSize = (b) => b > 1e6 ? (b/1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b/1e3)) + " KB";
+  function chip(text, cls) { const s = document.createElement("span"); s.className = "chip" + (cls ? " " + cls : ""); s.textContent = text; return s; }
+  function render() {
+    list.replaceChildren();
+    const done = items.filter((i) => i.status === "done");
+    $("count").textContent = showingExample ? "" : `${done.length} de ${items.length} ${items.length === 1 ? "imagen lista" : "imágenes listas"}`;
+    $("all").disabled = done.length < 1 || showingExample;
+    $("all").textContent = done.length > 1 ? "Descargar todas" : "Descargar";
+    $("clear").hidden = showingExample || !items.length;
+    if (showingExample) list.append(exampleEl());
+    for (const it of items) list.append(itemEl(it));
+  }
+  function itemEl(it) {
+    const el = document.createElement("div"); el.className = "item";
+    const th = document.createElement("img"); th.className = "thumb"; th.alt = "";
+    if (it.out) th.src = it.out.url; else if (it.thumb) th.src = it.thumb;
+    const info = document.createElement("div"); info.className = "info";
+    const n = document.createElement("div"); n.className = "name"; n.textContent = it.name;
+    const meta = document.createElement("div"); meta.className = "meta";
+    const chips = document.createElement("div"); chips.className = "chips";
+    info.append(n, meta, chips);
+    if (it.status === "work") { meta.textContent = "Limpiando…"; }
+    else if (it.status === "error") { meta.textContent = fmtSize(it.size); chips.append(chip(it.error, "err")); }
+    else {
+      meta.textContent = `${it.out.w}×${it.out.h} px`;
+      const clean = !it.out.after.tags.length;
+      chips.append(chip(clean ? "Limpia ✓" : "No se pudo limpiar del todo", clean ? "ok" : "err"));
+      const row = document.createElement("div"); row.className = "row";
+      if (true) {
+        const btn = document.createElement("button"); btn.className = "btn primary"; btn.type = "button"; btn.textContent = "Descargar";
+        btn.onclick = () => save(it.out.name, it.out.blob);
+        row.append(btn);
+      } else {
+        const h = document.createElement("span"); h.className = "hint";
+        h.textContent = "Mantené apretada la foto para guardarla.";
+        row.append(h);
+      }
+      info.append(row);
+    }
+    el.append(th, info);
+    return el;
+  }
+  function exampleEl() {
+    const el = document.createElement("div"); el.className = "item";
+    const th = document.createElement("div"); th.className = "thumb";
+    th.style.background = "linear-gradient(135deg,var(--accent-soft),var(--line))";
+    const info = document.createElement("div"); info.className = "info";
+    const tag = document.createElement("div"); tag.className = "example-tag"; tag.textContent = "Ejemplo de cómo se ve";
+    const n = document.createElement("div"); n.className = "name"; n.textContent = "reel-navidad-higgsfield.png";
+    const meta = document.createElement("div"); meta.className = "meta"; meta.textContent = "4,3 MB → 1,1 MB · 1080×1920";
+    const chips = document.createElement("div"); chips.className = "chips";
+    chips.append(chip("Credencial C2PA", "ai"), chip("Marcada como IA", "ai"), chip("Tenía XMP"), chip("Tenía C2PA"), chip("Limpia ✓", "ok"));
+    info.append(tag, n, meta, chips);
+    el.append(th, info);
+    return el;
+  }
+
+  async function save(filename, data) {
+    if (!downloads) {
+      const a = document.createElement("a"); const u = URL.createObjectURL(data);
+      a.href = u; a.download = filename; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(u), 4000); return;
+    }
+    try { await downloads.save({ filename, data }); toast("Guardada"); }
+    catch (e) {
+      const c = e && e.code;
+      if (c === "declined") return;
+      if (c === "rate_limited") toast("Esperá un segundo y probá de nuevo");
+      else if (c === "host_unavailable") toast("Esta app no puede guardar archivos. Abrí la página en el navegador.");
+      else toast("No se pudo guardar el archivo");
+    }
+  }
+  $("all").onclick = async () => {
+    const done = items.filter((i) => i.status === "done");
+    if (!done.length) return;
+    if (done.length === 1) return save(done[0].out.name, done[0].out.blob);
+    if (typeof JSZip === "undefined") { toast("No se pudo armar el zip. Descargalas de a una."); return; }
+    const zip = new JSZip(); const used = new Set();
+    for (const it of done) {
+      let nm = it.out.name, k = 2;
+      while (used.has(nm)) nm = it.out.name.replace(/(\.\w+)$/, `-${k++}$1`);
+      used.add(nm); zip.file(nm, it.out.blob);
+    }
+    const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
+    save("imagenes-limpias.zip", blob);
+  };
+  $("clear").onclick = () => { items.forEach((i) => { i.thumb && URL.revokeObjectURL(i.thumb); i.out && URL.revokeObjectURL(i.out.url); }); items.length = 0; render(); };
+
+  let tt; function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => t.hidden = true, 2600); }
+
+  drop.onclick = () => input.click();
+  drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } };
+  input.onchange = () => { addFiles(input.files); input.value = ""; };
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => addFiles(e.dataTransfer.files));
+  document.addEventListener("paste", (e) => { const f = [...(e.clipboardData?.files || [])]; if (f.length) addFiles(f); });
+
+  window.__limpiador = items;
+  render();
+})();
+</script>
+</body></html>
