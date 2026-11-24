@@ -110,7 +110,7 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;letter-spacing:.08e
     ["Google Gemini", "Gemini"], ["Imagen", "Google Imagen"], ["Stable Diffusion", "Stable Diffusion"],
     ["Runway ML", "Runway"], ["DALL-E", "DALL·E"],
   ];
-  function detect(buf) {
+  function detect(buf, structural) {
     const u8 = new Uint8Array(buf);
     const found = new Set();
     // PNG chunks
@@ -140,6 +140,7 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;letter-spacing:.08e
       }
     }
     // búsqueda de texto general (sirve para WebP y para confirmar)
+    if (structural) return { tags: [...found], ai: [] };
     const s = new TextDecoder("latin1").decode(u8.length > 40e6 ? u8.subarray(0, 40e6) : u8);
     if (s.includes("<x:xmpmeta") || s.includes("http://ns.adobe.com/xap/1.0/")) found.add("XMP");
     if (s.includes("c2pa") || s.includes("jumb") && s.includes("jumd")) found.add("C2PA");
@@ -149,6 +150,34 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;letter-spacing:.08e
     for (const [needle, label] of AI_HINTS) if (s.includes(needle)) ai.add(label);
     if (found.has("C2PA")) ai.add("Credencial C2PA");
     return { tags: [...found], ai: [...ai] };
+  }
+
+  // Saca del archivo final cualquier bloque de datos que el navegador haya agregado (Safari mete EXIF propio).
+  function strip(buf) {
+    const u8 = new Uint8Array(buf);
+    if (u8[0] === 0x89 && u8[1] === 0x50) {
+      const KEEP = new Set(["IHDR","PLTE","IDAT","IEND","tRNS","sRGB","gAMA","cHRM","iCCP","pHYs","sBIT"]);
+      const parts = [u8.subarray(0, 8)]; const dv = new DataView(buf); let p = 8;
+      while (p + 8 <= u8.length) {
+        const len = dv.getUint32(p); const type = asciiAt(u8, p+4, 4); const end = p + 12 + len;
+        if (KEEP.has(type)) parts.push(u8.subarray(p, end));
+        p = end; if (type === "IEND") break;
+      }
+      return new Blob(parts, { type: "image/png" });
+    }
+    if (u8[0] === 0xFF && u8[1] === 0xD8) {
+      const parts = [u8.subarray(0, 2)]; let p = 2;
+      while (p + 4 <= u8.length && u8[p] === 0xFF) {
+        const m = u8[p+1];
+        if (m === 0xDA) { parts.push(u8.subarray(p)); break; }
+        const len = (u8[p+2] << 8) | u8[p+3]; const end = p + 2 + len;
+        const drop = (m >= 0xE1 && m <= 0xEF && !(m === 0xE2 && asciiAt(u8, p+4, 11) === "ICC_PROFILE")) || m === 0xFE;
+        if (!drop) parts.push(u8.subarray(p, end));
+        p = end;
+      }
+      return new Blob(parts, { type: "image/jpeg" });
+    }
+    return new Blob([u8]);
   }
   function asciiAt(u8, start, n) { let o = ""; for (let i = 0; i < n && start+i < u8.length; i++) o += String.fromCharCode(u8[start+i]); return o; }
 
@@ -172,9 +201,10 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;letter-spacing:.08e
     if (fmt === "image/jpeg") { ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h); }
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, 0, w, h);
-    const blob = await new Promise((r) => c.toBlob(r, fmt, q));
-    if (!blob) throw new Error("encode");
-    const after = detect(await blob.arrayBuffer());
+    const raw = await new Promise((r) => c.toBlob(r, fmt, q));
+    if (!raw) throw new Error("encode");
+    const blob = strip(await raw.arrayBuffer());
+    const after = detect(await blob.arrayBuffer(), true);
     const base = it.name.replace(/\.[^.]+$/, "") || "imagen";
     it.out = { blob, name: `${base}-limpia.${fmt === "image/png" ? "png" : "jpg"}`, after, w, h, url: URL.createObjectURL(blob) };
   }
